@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, ERC20} from "./utils/Setup.sol";
 
-contract OperationTest is Setup {
+contract OperationNoAirdropTest is Setup {
     function setUp() public virtual override {
         super.setUp();
     }
@@ -17,46 +17,10 @@ contract OperationTest is Setup {
         assertEq(strategy.keeper(), keeper);
     }
 
-    function test_operation(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
-
-        // Deposit into strategy
-        mintAndDepositIntoStrategy(strategy, user, _amount);
-
-        checkStrategyTotals(strategy, _amount, _amount, 0);
-
-        // Earn Interest
-        skip(1 days);
-
-        // Report profit
-        vm.prank(keeper);
-        (uint256 profit, uint256 loss) = strategy.report();
-
-        // Check return Values
-        assertGe(profit, 0, "!profit");
-        assertGe(2, loss, "!loss");
-
-        skip(strategy.profitMaxUnlockTime());
-
-        uint256 balanceBefore = asset.balanceOf(user);
-
-        // Withdraw all funds
-        vm.prank(user);
-        strategy.redeem(_amount, user, user);
-
-        assertGe(
-            asset.balanceOf(user) + 2,
-            balanceBefore + _amount,
-            "!final balance"
-        );
-    }
-
-    function test_profitableReport(
-        uint256 _amount,
-        uint16 _profitFactor
+    function test_profitableReport_noairdrop(
+        uint256 _amount
     ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
-        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
@@ -64,18 +28,15 @@ contract OperationTest is Setup {
         checkStrategyTotals(strategy, _amount, _amount, 0);
 
         // Earn Interest
-        skip(1 days);
-
-        // TODO: implement logic to simulate earning interest.
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        airdrop(asset, address(strategy), toAirdrop);
+        skip(365 days);
 
         // Report profit
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
         // Check return Values
-        assertGe(profit, toAirdrop, "!profit");
+        console.log("profit: ", profit);
+        assertGe(profit, 1, "!profit");
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());
@@ -93,12 +54,46 @@ contract OperationTest is Setup {
         );
     }
 
-    function test_profitableReport_withFees(
-        uint256 _amount,
-        uint16 _profitFactor
+    function test_profitableReport_noairdrop_SINGLE(
+    ) public {
+        uint256 _amount = 10e18;
+
+        // Deposit into strategy
+        mintAndDepositIntoStrategy(strategy, user, _amount);
+
+        checkStrategyTotals(strategy, _amount, _amount, 0);
+
+        // Earn Interest
+        skip(365 days);
+
+        // Report profit
+        vm.prank(keeper);
+        (uint256 profit, uint256 loss) = strategy.report();
+
+        // Check return Values
+        console.log("profit: ", profit);
+        assertGe(profit, 1, "!profit");
+        assertEq(loss, 0, "!loss");
+
+        skip(strategy.profitMaxUnlockTime());
+
+        uint256 balanceBefore = asset.balanceOf(user);
+
+        // Withdraw all funds
+        vm.prank(user);
+        strategy.redeem(_amount, user, user);
+
+        assertGe(
+            asset.balanceOf(user),
+            balanceBefore + _amount,
+            "!final balance"
+        );
+    }
+
+    function test_profitableReport_withFees_noairdrop(
+        uint256 _amount
     ) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
-        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         // Set protofol fee to 0 and perf fee to 10%
         setFees(0, 1_000);
@@ -109,19 +104,15 @@ contract OperationTest is Setup {
         checkStrategyTotals(strategy, _amount, _amount, 0);
 
         // Earn Interest
-        skip(10 days);
-
-        // TODO: implement logic to simulate earning interest.
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        console.log("toAirdrop", toAirdrop);
-        airdrop(asset, address(strategy), toAirdrop);
+        skip(365 days);
 
         // Report profit
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
         // Check return Values
-        assertGe(profit, toAirdrop, "!profit");
+        console.log("profit: ", profit);
+        assertGe(profit, 1, "!profit");
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());

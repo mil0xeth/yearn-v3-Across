@@ -8,7 +8,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {CompoundV3LenderFactory, CompoundV3Lender} from "../../CompoundV3LenderFactory.sol";
+import {AcrossLenderFactory, AcrossLender} from "../../AcrossLenderFactory.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
@@ -29,9 +29,9 @@ contract Setup is ExtendedTest, IEvents {
     ERC20 public asset;
     IStrategyInterface public strategy;
 
-    CompoundV3LenderFactory public lenderFactory;
+    uint24 feeBaseToAsset;
 
-    address public comet = 0xc3d688B66703497DAA19211EEdff47f25384cdc3;
+    AcrossLenderFactory public lenderFactory;
 
     mapping(string => address) public tokenAddrs;
 
@@ -48,8 +48,8 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public decimals;
     uint256 public MAX_BPS = 10_000;
 
-    uint256 public maxFuzzAmount = 1e11;
-    uint256 public minFuzzAmount = 100_000;
+    uint256 public maxFuzzAmount = 100000 * 1e18;
+    uint256 public minFuzzAmount = 1e15;
 
     // Default prfot max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
@@ -57,14 +57,29 @@ contract Setup is ExtendedTest, IEvents {
     function setUp() public virtual {
         _setTokenAddrs();
 
-        lenderFactory = new CompoundV3LenderFactory(
+        lenderFactory = new AcrossLenderFactory(
             management,
             performanceFeeRecipient,
             keeper
         );
 
         // Set asset
+        asset = ERC20(tokenAddrs["WETH"]);
+        feeBaseToAsset = 3000;
+        maxFuzzAmount = 100000 * 1e18;
+        minFuzzAmount = 1e15;
+/*
         asset = ERC20(tokenAddrs["USDC"]);
+        feeBaseToAsset = 500;
+        maxFuzzAmount = 10e6 * 1e6;
+        minFuzzAmount = 1e5;
+
+        asset = ERC20(tokenAddrs["WBTC"]);
+        feeBaseToAsset = 3000;
+        maxFuzzAmount = 1e6 * 1e8;
+        minFuzzAmount = 1e5;
+*/
+
 
         // Set decimals
         decimals = asset.decimals();
@@ -87,11 +102,10 @@ contract Setup is ExtendedTest, IEvents {
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
             address(
-                lenderFactory.newCompoundV3Lender(
+                lenderFactory.newAcrossLender(
                     address(asset),
-                    "Tokenized Strategy",
-                    comet,
-                    0xdbd020CAeF83eFd542f4De03e3cF0C28A4428bd5
+                    feeBaseToAsset,
+                    "Tokenized Strategy"
                 )
             )
         );
@@ -100,7 +114,7 @@ contract Setup is ExtendedTest, IEvents {
         _strategy.acceptManagement();
 
         vm.prank(management);
-        _strategy.setUniFees(3000, 500);
+        _strategy.setMinAmountToSell(0);
 
         return address(_strategy);
     }
