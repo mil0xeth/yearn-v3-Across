@@ -38,6 +38,7 @@ contract Setup is ExtendedTest, IEvents {
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
     address public keeper = address(4);
+    address public sms = address(5);
     address public management = address(1);
     address public performanceFeeRecipient = address(3);
 
@@ -56,11 +57,11 @@ contract Setup is ExtendedTest, IEvents {
 
     function setUp() public virtual {
         _setTokenAddrs();
-
         lenderFactory = new AcrossLenderFactory(
             management,
             performanceFeeRecipient,
-            keeper
+            keeper,
+            sms
         );
 
         // Set asset
@@ -100,6 +101,7 @@ contract Setup is ExtendedTest, IEvents {
 
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
+        vm.prank(management);
         IStrategyInterface _strategy = IStrategyInterface(
             address(
                 lenderFactory.newAcrossLender(

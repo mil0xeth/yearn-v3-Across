@@ -13,6 +13,7 @@ contract AcrossLenderFactory {
     address public management;
     address public performanceFeeRecipient;
     address public keeper;
+    address public emergencyAdmin;
 
     /// @notice Track the deployments. asset => strategy
     mapping(address => address) public deployments;
@@ -20,12 +21,14 @@ contract AcrossLenderFactory {
     constructor(
         address _management,
         address _performanceFeeRecipient,
-        address _keeper
+        address _keeper,
+        address _emergencyAdmin
     ) {
         require(_management != address(0), "ZERO ADDRESS");
         management = _management;
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
+        emergencyAdmin = _emergencyAdmin;
     }
 
     /**
@@ -40,8 +43,8 @@ contract AcrossLenderFactory {
         uint24 _feeBaseToAsset,
         string memory _name
     ) external returns (address) {
-        if (deployments[_asset] != address(0))
-            revert AlreadyDeployed(deployments[_asset]);
+        require(msg.sender == management, "!management");
+        if (deployments[_asset] != address(0)) revert AlreadyDeployed(deployments[_asset]);
         // We need to use the custom interface with the
         // tokenized strategies available setters.
         IStrategyInterface newStrategy = IStrategyInterface(
@@ -58,6 +61,8 @@ contract AcrossLenderFactory {
 
         newStrategy.setKeeper(keeper);
 
+        newStrategy.setEmergencyAdmin(emergencyAdmin);
+
         newStrategy.setPendingManagement(management);
 
         emit NewAcrossLender(address(newStrategy), _asset);
@@ -69,12 +74,15 @@ contract AcrossLenderFactory {
     function setAddresses(
         address _management,
         address _performanceFeeRecipient,
-        address _keeper
+        address _keeper,
+        address _emergencyAdmin
     ) external {
         require(msg.sender == management, "!management");
+        require(_management != address(0), "address(0)");
         management = _management;
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
+        emergencyAdmin = _emergencyAdmin;
     }
 
     function isDeployedStrategy(

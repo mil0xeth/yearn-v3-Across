@@ -42,5 +42,36 @@ contract ShutdownTest is Setup {
         );
     }
 
-    // TODO: Add tests for any emergency function added.
+    function test_shutdownMaxWithdraw() public {
+        uint256 _amount = maxFuzzAmount;
+        // Deposit into strategy
+        mintAndDepositIntoStrategy(strategy, user, _amount);
+
+        checkStrategyTotals(strategy, _amount, _amount, 0);
+
+        // Earn Interest
+        skip(100 days);
+
+        // Shutdown the strategy
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        vm.prank(management);
+        strategy.emergencyWithdraw(type(uint256).max);
+
+        checkStrategyTotals(strategy, _amount, 0, _amount);
+
+        // Make sure we can still withdraw the full amount
+        uint256 balanceBefore = asset.balanceOf(user);
+
+        // Withdraw all funds
+        vm.prank(user);
+        strategy.redeem(_amount, user, user);
+
+        assertGe(
+            asset.balanceOf(user),
+            balanceBefore + _amount,
+            "!final balance"
+        );
+    }
 }
