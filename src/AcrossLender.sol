@@ -21,6 +21,7 @@ contract AcrossLender is BaseStrategy, UniswapV3Swapper {
     bool public claimRewards = true;
 
     uint256 internal constant WAD = 1e18;
+    uint256 internal constant ASSET_DUST = 100;
 
     constructor(address _asset, uint24 _feeBaseToAsset, string memory _name) BaseStrategy(_asset, _name) {
         (address _lpToken, bool isEnabled, , , , ) = IHubPool(HUBPOOL).pooledTokens(address(asset));
@@ -51,7 +52,7 @@ contract AcrossLender is BaseStrategy, UniswapV3Swapper {
     }
 
     function _harvestAndReport() internal override returns (uint256 _totalAssets) {
-        if (claimRewards && claimableRewards() > 0) {
+        if (claimRewards) {
             IStaking(STAKING).withdrawReward(lpToken);
             _swapFrom(rewardToken, address(asset), balanceOfRewards(), 0); // minAmountOut = 0 since we only sell rewards
         }
@@ -60,7 +61,7 @@ contract AcrossLender is BaseStrategy, UniswapV3Swapper {
         if (TokenizedStrategy.isShutdown()) {
             _totalAssets = balance + _lpToAsset(balanceOfStake());
         } else {
-            if (balance > 0) {
+            if (balance > ASSET_DUST) {
                 _deployFunds(balance);
             }
             _totalAssets = _lpToAsset(balanceOfStake());
